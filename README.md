@@ -7,6 +7,8 @@ na sala, os administradores controlam agenda, pagamentos e cadastros, e tudo rod
 Nasceu de uma necessidade real: abrir um estúdio com aluguel mensal de salas e controlar horários, cobranças
 e acesso de cada professor sem depender de planilhas nem de um sistema de desktop.
 
+**[Ver demonstração ao vivo](https://lyrics-hub-demo.netlify.app)** · funciona no celular e no computador, sem login (use os botões de entrada rápida).
+
 > **English summary** — Mobile-first management app for a monthly music-room coworking space, built with
 > Expo / React Native (TypeScript) and Supabase (Postgres + Row Level Security + Edge Functions + pg_cron).
 > Three roles (visitor, teacher, admin), server-side pricing with tiered discounts and coupons, a manual
@@ -125,7 +127,7 @@ criar uma conta (o pedido aparece na fila do administrador), confirmar o pagamen
 npm run build:demo     # gera a pasta dist-demo/ sem nenhuma conexão com banco
 ```
 
-<!-- Link da demonstração publicada: https://SEU-SITE-DEMO.netlify.app -->
+**Demonstração ao vivo: [lyrics-hub-demo.netlify.app](https://lyrics-hub-demo.netlify.app)**
 
 ## Limitações conhecidas
 

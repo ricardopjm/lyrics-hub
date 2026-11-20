@@ -114,6 +114,19 @@ npx expo export --platform web   # gera a pasta dist/
 Envie a pasta `dist/` para qualquer hospedagem estática (Netlify, Vercel, Cloudflare Pages).
 O arquivo `public/_redirects` já cobre o recarregamento de páginas internas.
 
+## Versão de demonstração
+
+Sem as variáveis do Supabase, o app roda em **modo demonstração**: dados fictícios em memória, nenhum servidor e
+nada é salvo (recarregar a página reinicia tudo). Dá para percorrer o fluxo completo: escolher horários como visitante,
+criar uma conta (o pedido aparece na fila do administrador), confirmar o pagamento, renovar plano, usar cupons
+(código `PROMO10`) e cadastrar alunos. O WhatsApp não abre: a mensagem do pedido é exibida na tela.
+
+```bash
+npm run build:demo     # gera a pasta dist-demo/ sem nenhuma conexão com banco
+```
+
+<!-- Link da demonstração publicada: https://SEU-SITE-DEMO.netlify.app -->
+
 ## Limitações conhecidas
 
 - **Sem suíte de testes automatizados.** O fluxo foi validado manualmente, de ponta a ponta, contra um Supabase real.

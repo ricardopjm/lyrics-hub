@@ -36,7 +36,7 @@ export default function Login() {
         {DEMO ? (
           <>
             <Text style={{ fontFamily: f.light, color: c.ink2, marginBottom: 16 }}>
-              Modo demonstração: dados de exemplo, sem servidor.
+              Versão de demonstração: dados fictícios, nada é salvo. Entre como administrador ou professor para explorar o app.
             </Text>
           </>
         ) : (

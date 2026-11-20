@@ -1,6 +1,8 @@
 import { Linking, Platform } from 'react-native';
 import { STUDIO } from './config';
 import { brl } from './lib/data';
+import { notify } from './notify';
+import { DEMO } from './lib/supabase';
 
 export type Order = {
   name: string;
@@ -43,6 +45,11 @@ export const whatsappUrl = (text: string) =>
 
 // Abre o WhatsApp da Lyrics com a mensagem pronta.
 export async function openWhatsApp(text: string) {
+  if (DEMO) {
+    // A demonstração não abre o WhatsApp de ninguém: mostra a mensagem que seria enviada.
+    notify('Pedido (demonstração)', `Na versão real, o WhatsApp da Lyrics abre com esta mensagem pronta:\n\n${text}`);
+    return;
+  }
   if (!STUDIO.whatsapp.replace(/\D/g, '')) throw new Error('O WhatsApp da Lyrics ainda não foi configurado no app.');
   const url = whatsappUrl(text);
   if (Platform.OS === 'web') { window.open(url, '_blank'); return; }

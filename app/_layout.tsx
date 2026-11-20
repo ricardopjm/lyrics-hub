@@ -5,9 +5,11 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Text, View } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DEMO } from '../src/lib/supabase';
 import { AuthProvider, useAuth } from '../src/lib/auth';
-import { c } from '../src/theme';
+import { c, f } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,6 +38,20 @@ function Guard() {
   );
 }
 
+// Etiqueta discreta para deixar claro que é a versão de demonstração (dados fictícios, nada é salvo).
+function DemoBadge() {
+  const insets = useSafeAreaInsets();
+  if (!DEMO) return null;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 62, alignItems: 'center', zIndex: 50 }}>
+      <Text style={{ fontFamily: f.regular, fontSize: 10, letterSpacing: 1.5, color: c.white, backgroundColor: c.violet,
+        paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, overflow: 'hidden' }}>
+        DEMONSTRAÇÃO · DADOS FICTÍCIOS · CUPOM: PROMO10
+      </Text>
+    </View>
+  );
+}
+
 export default function Root() {
   const [fontsLoaded, fontError] = useFonts({
     CormorantGaramond_300Light, CormorantGaramond_300Light_Italic, Jost_300Light, Jost_400Regular,
@@ -51,6 +67,7 @@ export default function Root() {
       <AuthProvider>
         <StatusBar style="dark" />
         <Guard />
+        <DemoBadge />
       </AuthProvider>
     </SafeAreaProvider>
   );

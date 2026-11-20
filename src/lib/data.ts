@@ -46,6 +46,14 @@ const demo = {
   ] as Charge[],
 };
 
+// Pedidos de professores na demonstração (cobrança pendente + o que foi reservado nela).
+type DemoOrder = {
+  slotIds: string[]; createdAt: string; discount: number; coupon: string | null;
+  kind: 'novo' | 'renovacao'; signup?: { email: string; phone: string };
+};
+const demoOrders: Record<string, DemoOrder> = {};
+const demoNextMonth = () => new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 7);
+
 export const demoUser = (r: Role) => demo.users[r];
 
 // ---------- API ----------
@@ -187,9 +195,12 @@ export async function bookSlots(user: User, picks: Pick[], opts: BookOptions = {
     if (demo.slots.some((s) => s.roomId === p.room_id && s.weekday === p.weekday && s.start === p.start))
       throw new Error('Um dos horários acabou de ser ocupado. Atualize e escolha outro.');
   }
+  const newIds: string[] = [];
   for (const p of picks) {
+    const sid = 's' + Math.random().toString(36).slice(2);
+    newIds.push(sid);
     demo.slots.push({
-      id: 's' + Math.random().toString(36).slice(2), roomId: p.room_id, room: p.room_id,
+      id: sid, roomId: p.room_id, room: p.room_id,
       teacherId: who.id, teacher: who.name, weekday: p.weekday, start: p.start,
       end: endOf(p.start), student: null,
     });
@@ -219,10 +230,13 @@ export async function bookSlots(user: User, picks: Pick[], opts: BookOptions = {
   }
   const diff = gross - discount;
   if (gross > 0) {
+    const cid = 'c' + Date.now();
+    const selfOrder = !opts.teacher && user.role === 'teacher'; // professor fechando os próprios horários: precisa de confirmação
     demo.charges.push({
-      id: 'c' + Date.now(), teacher: who.name, cents: diff, status: diff === 0 ? 'paid' : 'pending', method: null, note: opts.note?.trim() || null,
-      due: new Date(Date.now() + 5 * 864e5).toISOString().slice(0, 10),
+      id: cid, teacher: who.name, cents: diff, status: diff === 0 ? 'paid' : 'pending', method: null, note: opts.note?.trim() || null,
+      due: new Date(Date.now() + 5 * 864e5).toISOString().slice(0, 10), origin: selfOrder ? 'teacher' : 'admin',
     });
+    if (selfOrder) demoOrders[cid] = { slotIds: newIds, createdAt: new Date().toISOString(), discount, coupon: usedCode, kind: 'novo' };
   }
   return { count: total, per_slot_cents: per, total_cents: due, charged_cents: diff, discount_cents: discount, coupon_code: usedCode };
 }
@@ -324,11 +338,13 @@ export async function getRenewalQuote(user: User, code?: string): Promise<Quote>
 export async function renewPlan(user: User, code?: string) {
   if (DEMO) {
     const q = await getRenewalQuote(user, code);
+    const cid = 'c' + Date.now();
     demo.charges.push({
-      id: 'c' + Date.now(), teacher: user.name, cents: q.total_cents, status: q.total_cents === 0 ? 'paid' : 'pending',
+      id: cid, teacher: user.name, cents: q.total_cents, status: q.total_cents === 0 ? 'paid' : 'pending',
       method: null, note: 'Renovação do plano' + (q.coupon_code ? ` · cupom ${q.coupon_code}` : ''),
-      due: new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10),
+      due: new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10), origin: 'teacher',
     });
+    demoOrders[cid] = { slotIds: [], createdAt: new Date().toISOString(), discount: q.discount_cents, coupon: q.coupon_code, kind: 'renovacao' };
     return;
   }
   const { error } = await supabase.rpc('renew_plan', { p_code: code?.trim() || null });
@@ -398,6 +414,7 @@ export type ReportRow = {
 const demoStudents: { id: string; owner: string; name: string; phone: string | null; note: string | null }[] = [
   { id: 'a1', owner: 't1', name: 'Ana Souza', phone: null, note: 'Violão, nível iniciante.' },
   { id: 'a2', owner: 't1', name: 'Bruno Lima', phone: null, note: null },
+  { id: 'a3', owner: 'a1', name: 'Carla Dias', phone: null, note: 'Aulas de teclado, às terças.' },
 ];
 const demoNotes: { id: string; studentId: string; note: string; at: string }[] = [
   { id: 'n1', studentId: 'a1', note: 'Aprendeu os primeiros acordes.', at: '2026-11-16T15:00:00' },
@@ -528,7 +545,17 @@ export type Order = {
 
 // Fila do administrador: pedidos de professores com pagamento ainda não conferido.
 export async function listOrders(): Promise<Order[]> {
-  if (DEMO) return [];
+  if (DEMO) {
+    return demo.charges.filter((c) => c.origin === 'teacher' && c.status === 'pending' && demoOrders[c.id]).map((c) => {
+      const m = demoOrders[c.id];
+      return {
+        id: c.id, teacher: c.teacher, email: m.signup?.email ?? null, phone: m.signup?.phone || null, signup: !!m.signup,
+        amount_cents: c.cents, discount_cents: m.discount, coupon_code: m.coupon, note: c.note ?? null,
+        created_at: m.createdAt, cycle: m.kind === 'renovacao' ? demoNextMonth() : m.createdAt.slice(0, 7), kind: m.kind,
+        slots: demo.slots.filter((s) => m.slotIds.includes(s.id)).map((s) => ({ weekday: s.weekday, start: s.start })),
+      };
+    });
+  }
   const { data, error } = await supabase.rpc('pending_orders');
   if (error) throw new Error(error.message);
   return data as Order[];
@@ -536,21 +563,34 @@ export async function listOrders(): Promise<Order[]> {
 
 // O administrador conferiu que o pagamento caiu: vira "Recebido" e entra no Financeiro.
 export async function confirmOrder(id: string) {
-  if (DEMO) return;
+  if (DEMO) {
+    const c = demo.charges.find((x) => x.id === id);
+    if (c) { c.status = 'paid'; c.method = 'pix'; }
+    return;
+  }
   const { error } = await supabase.rpc('confirm_order', { p_charge: id, p_method: 'pix' });
   if (error) throw new Error(error.message);
 }
 
 // Recusa: os horários do pedido voltam a ficar livres e o cupom é devolvido.
 export async function rejectOrder(id: string) {
-  if (DEMO) return;
+  if (DEMO) {
+    const m = demoOrders[id];
+    if (m) demo.slots = demo.slots.filter((s) => !m.slotIds.includes(s.id));
+    demo.charges = demo.charges.filter((x) => x.id !== id);
+    delete demoOrders[id];
+    return;
+  }
   const { error } = await supabase.rpc('reject_order', { p_charge: id });
   if (error) throw new Error(error.message);
 }
 
 // Quantos pedidos do professor ainda aguardam a confirmação.
 export async function getMyPendingOrders(): Promise<{ count: number; total_cents: number }> {
-  if (DEMO) return { count: 0, total_cents: 0 };
+  if (DEMO) {
+    const mine = demo.charges.filter((c) => c.origin === 'teacher' && c.status === 'pending' && c.teacher === demo.users.teacher.name);
+    return { count: mine.length, total_cents: mine.reduce((a, c) => a + c.cents, 0) };
+  }
   const { data, error } = await supabase.rpc('my_pending_orders');
   if (error) throw new Error(error.message);
   return data as { count: number; total_cents: number };
@@ -566,7 +606,6 @@ export type SignupResult = {
 };
 
 async function callSignup(body: object): Promise<any> {
-  if (DEMO) throw new Error('O cadastro só funciona com o servidor ligado.');
   const { data, error } = await supabase.functions.invoke('signup-teacher', { body });
   // Erros da função vêm no corpo da resposta (status 4xx).
   if (error) {
@@ -578,12 +617,48 @@ async function callSignup(body: object): Promise<any> {
 }
 
 // Preço com cupom para quem ainda não tem conta (sem criar nada).
-export const signupQuote = (picks: Pick2[], coupon: string): Promise<SignupQuote> =>
-  callSignup({ action: 'quote', picks, coupon: coupon.trim() || null });
+export async function signupQuote(picks: Pick2[], coupon: string): Promise<SignupQuote> {
+  if (DEMO) {
+    const per = pricePerSlot(picks.length), gross = picks.length * per;
+    const cp = demoCoupons.find((x) => x.code === coupon.trim().toUpperCase() && x.active);
+    if (!cp) throw new Error('Cupom inválido.');
+    const disc = cp.kind === 'percent' ? Math.floor((gross * cp.value) / 100) : Math.min(cp.value, gross);
+    return { count: picks.length, per_slot_cents: per, gross_cents: gross, discount_cents: disc, pay_cents: gross - disc, coupon_code: cp.code };
+  }
+  return callSignup({ action: 'quote', picks, coupon: coupon.trim() || null });
+}
 
 // Cria a conta INATIVA, reserva os horários e gera o pedido para o administrador conferir.
-export const signupTeacher = (f: { name: string; email: string; phone: string; password: string; picks: Pick2[]; coupon: string }): Promise<SignupResult> =>
-  callSignup({ action: 'create', ...f, coupon: f.coupon.trim() || null });
+export async function signupTeacher(f: { name: string; email: string; phone: string; password: string; picks: Pick2[]; coupon: string }): Promise<SignupResult> {
+  if (DEMO) {
+    // Simulação: cria só o pedido na fila do administrador. Nenhuma conta real é criada.
+    for (const p of f.picks) {
+      if (demo.slots.some((s) => s.roomId === p.room_id && s.weekday === p.weekday && s.start === p.start))
+        throw new Error('Um dos horários acabou de ser ocupado. Atualize e escolha outro.');
+    }
+    const tid = 'p' + Date.now();
+    const ids: string[] = [];
+    for (const p of f.picks) {
+      const sid = 's' + Math.random().toString(36).slice(2); ids.push(sid);
+      demo.slots.push({ id: sid, roomId: p.room_id, room: p.room_id, teacherId: tid, teacher: f.name, weekday: p.weekday, start: p.start, end: endOf(p.start), student: null });
+    }
+    const per = pricePerSlot(f.picks.length), due = f.picks.length * per;
+    let disc = 0, used: string | null = null;
+    if (f.coupon.trim()) {
+      const cp = demoCoupons.find((x) => x.code === f.coupon.trim().toUpperCase() && x.active);
+      if (!cp) throw new Error('Cupom inválido.');
+      disc = cp.kind === 'percent' ? Math.floor((due * cp.value) / 100) : Math.min(cp.value, due);
+      used = cp.code;
+    }
+    const cid = 'c' + Date.now();
+    demo.charges.push({ id: cid, teacher: f.name, cents: due - disc, status: 'pending', method: null,
+      due: new Date(Date.now() + 5 * 864e5).toISOString().slice(0, 10), origin: 'teacher' });
+    demoOrders[cid] = { slotIds: ids, createdAt: new Date().toISOString(), discount: disc, coupon: used, kind: 'novo',
+      signup: { email: f.email.trim().toLowerCase(), phone: f.phone } };
+    return { count: f.picks.length, per_slot_cents: per, total_cents: due, charged_cents: due - disc, discount_cents: disc, coupon_code: used };
+  }
+  return callSignup({ action: 'create', ...f, coupon: f.coupon.trim() || null });
+}
 
 // Situação do plano do professor logado (vencido => botão "Contratar novo plano").
 export async function getMyPlan(): Promise<{ plan_until: string | null; expired: boolean; has_slots: boolean }> {

@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Lyrics Hub",
+    "slug": "lyrics-hub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "br.com.lyrics.hub"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "br.com.lyrics.hub"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro",
+      "name": "Lyrics Hub",
+      "shortName": "Lyrics Hub",
+      "themeColor": "#FDFCFE",
+      "backgroundColor": "#FDFCFE"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-splash-screen",
+      [
+        "expo-notifications",
+        {
+          "color": "#672A82"
+        }
+      ]
+    ],
+    "scheme": "lyricshub",
+    "backgroundColor": "#FDFCFE"
+  }
+}

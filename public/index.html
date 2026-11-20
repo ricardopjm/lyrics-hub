@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
+    <title>Lyrics Hub</title>
+    <meta name="description" content="Gestão de horários e planos da Lyrics, hub de ensino musical." />
+    <meta name="theme-color" content="#FDFCFE" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Lyrics Hub" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <script>
+      // Se o app não abrir em 15 segundos, mostra o motivo em vez de uma tela em branco.
+      (function () {
+        var lastErr = '';
+        window.addEventListener('error', function (e) {
+          lastErr = (e.message || 'erro') + (e.filename ? ' [' + e.filename.split('/').pop() + ':' + e.lineno + ']' : '');
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          lastErr = 'promessa rejeitada: ' + (e.reason && e.reason.message ? e.reason.message : e.reason);
+        });
+        setTimeout(function () {
+          var boot = document.getElementById('boot');
+          if (!boot) return;
+          boot.innerHTML = '<h2 style="font-weight:300;font-size:26px;margin:0 0 12px">Não foi possível abrir o app</h2>' +
+            '<p style="margin:0 0 12px;line-height:1.5">Tente atualizar a página. Se continuar, abra este endereço no Chrome ou no Safari atualizados, ' +
+            'fora do navegador de dentro de outro aplicativo (WhatsApp, Instagram).</p>' +
+            '<p style="margin:0;font-size:12px;color:#6A6075;word-break:break-word">Detalhe técnico: ' +
+            (lastErr || 'o app demorou para carregar') + ' · ' + navigator.userAgent + '</p>';
+        }, 15000);
+      })();
+    </script>
+    <style id="expo-reset">
+      html, body { height: 100%; }
+      body { overflow: hidden; background: #FDFCFE; }
+      #root { display: flex; height: 100%; flex: 1; }
+    </style>
+  </head>
+  <body>
+    <noscript>Ative o JavaScript para usar o Lyrics Hub.</noscript>
+    <div id="root"><div id="boot" style="font-family:system-ui,-apple-system,sans-serif;color:#2A2030;padding:40px 28px;">Carregando Lyrics Hub…</div></div>
+  </body>
+</html>
